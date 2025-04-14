@@ -1,14 +1,17 @@
 {
   "name": "nodejs-app",
   "version": "1.0.0",
-  "description": "A minimal Node.js web application.",
+  "description": "A minimal Node.js web application with PriceEngine.",
   "main": "app.js",
   "author": "alphasec",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "@supabase/supabase-js": "^2.39.7",
+    "dotenv": "^16.3.1"
   },
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "cron": "ts-node apps/price-engine/cronRunner.ts"
   }
 }
