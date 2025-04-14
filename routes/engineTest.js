@@ -14,29 +14,49 @@ router.get("/ping", (_, res) => {
 router.get("/calculate", async (req, res) => {
   const { sku_id, currency } = req.query;
   if (!sku_id || !currency) return res.status(400).send("Missing sku_id or currency");
-  const result = await calculateFinalPrice(String(sku_id), String(currency));
-  if (!result) return res.status(404).send("No calculation result");
-  res.json(result);
+  try {
+    const result = await calculateFinalPrice(String(sku_id), String(currency));
+    if (!result) return res.status(404).send("No calculation result");
+    res.json(result);
+  } catch (err) {
+    console.error("[ERR_CODE: CALCULATE_ENDPOINT_ERROR]", err.message);
+    res.status(500).send("Internal server error");
+  }
 });
 
 router.get("/upsert", async (req, res) => {
   const { sku_id, currency } = req.query;
   if (!sku_id || !currency) return res.status(400).send("Missing sku_id or currency");
-  const result = await calculateFinalPrice(String(sku_id), String(currency));
-  if (!result) return res.status(404).send("Calculation failed");
-  await upsertSkuPrice(result);
-  res.send("Upsert completed ✅");
+  try {
+    const result = await calculateFinalPrice(String(sku_id), String(currency));
+    if (!result) return res.status(404).send("Calculation failed");
+    await upsertSkuPrice(result);
+    res.send("Upsert completed ✅");
+  } catch (err) {
+    console.error("[ERR_CODE: UPSERT_ENDPOINT_ERROR]", err.message);
+    res.status(500).send("Internal server error");
+  }
 });
 
 router.get("/changed", async (_, res) => {
-  const lastCheckedAt = await getLastCheckedAt();
-  const list = await getChangedSkuCurrencyList(lastCheckedAt);
-  res.json(list);
+  try {
+    const lastCheckedAt = await getLastCheckedAt();
+    const list = await getChangedSkuCurrencyList(lastCheckedAt);
+    res.json(list);
+  } catch (err) {
+    console.error("[ERR_CODE: CHANGED_ENDPOINT_ERROR]", err.message);
+    res.status(500).send("Internal server error");
+  }
 });
 
 router.get("/cron", async (_, res) => {
-  await cronRunner();
-  res.send("Cron job finished ✅");
+  try {
+    await cronRunner();
+    res.send("Cron job finished ✅");
+  } catch (err) {
+    console.error("[ERR_CODE: CRON_ENDPOINT_ERROR]", err.message);
+    res.status(500).send("Internal server error");
+  }
 });
 
 module.exports = router;

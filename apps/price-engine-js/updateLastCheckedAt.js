@@ -1,6 +1,6 @@
-import { supabase } from "./supabaseClient";
+const { supabase } = require("./supabaseClient");
 
-export async function getLastCheckedAt(): Promise<string> {
+async function getLastCheckedAt() {
   const { data, error } = await supabase
     .from("scheduler_config")
     .select("last_checked_at")
@@ -8,23 +8,22 @@ export async function getLastCheckedAt(): Promise<string> {
     .maybeSingle();
 
   if (error || !data?.last_checked_at) {
-    console.warn("[WARN_CODE: LAST_CHECKED_AT_FALLBACK]");
+    console.warn("Fallback to now for last_checked_at due to error or missing config.");
     return new Date().toISOString();
   }
-
   return data.last_checked_at;
 }
 
-export async function updateLastCheckedAt() {
+async function updateLastCheckedAt() {
   const { error } = await supabase
     .from("scheduler_config")
     .update({ last_checked_at: new Date().toISOString() })
     .eq("name", "price_engine");
-
   if (error) {
-    console.error("[ERR_CODE: UPDATE_LAST_CHECKED_AT]", error.message);
+    console.error(`[ERR_CODE: UPDATE_LAST_CHECKED_AT_FAILED] Failed to update last_checked_at:`, error.message);
     throw error;
   }
-
-  console.log("🧭 lastCheckedAt updated");
+  console.log("✅ Updated last_checked_at in scheduler_config");
 }
+
+module.exports = { getLastCheckedAt, updateLastCheckedAt };

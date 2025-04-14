@@ -1,24 +1,25 @@
 const express = require('express');
 const path = require('path');
 
-// Ana router
+// Ana router (örneğin index.js; basit bir örnek içerik oluşturabilirsiniz)
 const indexRouter = require('./routes/index');
 
-// Ek test route'ları
+// Engine fonksiyon test endpoint'leri
 const engineTestRouter = require('./routes/engineTest');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Statik dosyalar
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Engine fonksiyon test endpoint'leri
+// Engine endpoint'leri: /engine altında çalışır
 app.use('/engine', engineTestRouter);
 
-// Ana route
+// Ana route (örneğin ana sayfa)
 app.use('/', indexRouter);
 
-// 404 fallback
+// 404 fallback: Eğer hiçbir route eşleşmezse views/404.html gösterilir
 app.use((req, res, next) => {
   res.status(404).sendFile(path.join(__dirname, 'views', '404.html'));
 });

@@ -1,7 +1,6 @@
-import { supabase } from "./supabaseClient";
-import { type CalculatedPrice } from "./calculateFinalPrice";
+const { supabase } = require("./supabaseClient");
 
-export async function upsertSkuPrice(price: CalculatedPrice) {
+async function upsertSkuPrice(price) {
   const { error } = await supabase
     .from("sku_prices")
     .upsert(
@@ -22,11 +21,11 @@ export async function upsertSkuPrice(price: CalculatedPrice) {
       },
       { onConflict: "sku_id, currency_code" }
     );
-
   if (error) {
-    console.error("[ERR_CODE: UPSERT_FAILED]", price.sku_id, price.currency_code, error.message);
+    console.error(`[ERR_CODE: UPSERT_FAILED] Failed to upsert sku_price for ${price.sku_id}/${price.currency_code}`, error.message);
     throw error;
   }
-
-  console.log("✅ Upserted:", price.sku_id, price.currency_code);
+  console.log(`✅ sku_price upserted for ${price.sku_id} ${price.currency_code}`);
 }
+
+module.exports = { upsertSkuPrice };
