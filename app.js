@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors'); // 1) Require the cors package
 const path = require('path');
 
 // Ana router (örneğin index.js)
@@ -10,26 +11,35 @@ const engineTestRouter = require('./routes/engineTest');
 // Supabase health test endpoint'i
 const supabaseHealthRouter = require('./routes/supabaseHealth');
 
-// Burada, "cronRunner" fonksiyonunun doğru yolu:
-// Eğer senin "apps/price-engine-js/cronRunner.js" içindeyse, şöyle:
-const { cronRunner } = require('./apps/price-engine-js/cronRunner');
-// Eğer farklı klasördeyse, ona göre güncelle (örn. './cronRunner')
+// cronRunner fonksiyonu
+const { cronRunner } = require('./apps/price-engine-js/cronRunner'); 
 
 const app = express();
 
-// Railway ortamında PORT environment değişkeni atanır, yoksa 8080 kullanılır.
+// 2) Use CORS BEFORE your routes
+// If you ONLY want to allow your Netlify domain, specify it here:
+app.use(
+  cors({
+    origin: 'https://deluxe-kitten-74c23f.netlify.app',
+    // You can also specify methods, credentials, etc. if needed:
+    // methods: ['GET', 'POST'],
+  })
+);
+// If you want to allow all origins (not recommended for production):
+// app.use(cors());
+
 const PORT = process.env.PORT || 8080;
 
-// Statik dosyalar (public klasörü varsa)
+// Statik dosyalar
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Engine endpoint'leri: /engine altında çalışır
+// Engine endpoint'leri: /engine altında
 app.use('/engine', engineTestRouter);
 
 // Ana route
 app.use('/', indexRouter);
 
-// Supabase health endpoint'i: /health
+// Supabase health endpoint'i
 app.use('/health', supabaseHealthRouter);
 
 // 404 fallback
@@ -37,11 +47,10 @@ app.use((req, res, next) => {
   res.status(404).sendFile(path.join(__dirname, 'views', '404.html'));
 });
 
-// Sunucuyu "0.0.0.0" üzerinde başlat (Railway için)
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running at http://localhost:${PORT}/`);
 
-  // Her 5 dakikada bir cronRunner fonksiyonunu çağırıyoruz.
+  // 5 dakikada bir cronRunner çağır
   const FIVE_MINUTES = 5 * 60 * 1000;
   setInterval(() => {
     console.log('⏱  Triggering PriceEngine cron internally...');
