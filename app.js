@@ -23,7 +23,7 @@ app.use('/', indexRouter);
 
 const supabaseHealthRouter = require('./routes/supabaseHealth');
 
-app.use('/', supabaseHealthRouter);
+app.use('/health', supabaseHealthRouter);
 
 
 // 404 fallback: Eşleşmeyen route’lar için views/404.html gösterilir
