@@ -5,12 +5,11 @@ const path = require('path');
 const indexRouter = require('./routes/index');
 
 // Ek test route'ları
-const engineTestRouter = require('./routes/engineTest.js'); // PriceEngine fonksiyonlarının HTTP testleri
+const engineTestRouter = require('./routes/engineTest');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Statik dosyalar
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Engine fonksiyon test endpoint'leri

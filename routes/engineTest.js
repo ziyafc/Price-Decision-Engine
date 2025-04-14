@@ -1,13 +1,15 @@
-import express from "express";
-import { calculateFinalPrice } from "../apps/price-engine/calculateFinalPrice";
-import { upsertSkuPrice } from "../apps/price-engine/upsertSkuPrice";
-import { getChangedSkuCurrencyList } from "../apps/price-engine/getChangedSkuCurrencyList";
-import { getLastCheckedAt, updateLastCheckedAt } from "../apps/price-engine/updateLastCheckedAt";
-import { cronRunner } from "../apps/price-engine/cronRunner";
-
+const express = require("express");
 const router = express.Router();
 
-router.get("/ping", (_, res) => res.send("PriceEngine is alive 🚀"));
+const { calculateFinalPrice } = require("../apps/price-engine/calculateFinalPrice");
+const { upsertSkuPrice } = require("../apps/price-engine/upsertSkuPrice");
+const { getChangedSkuCurrencyList } = require("../apps/price-engine/getChangedSkuCurrencyList");
+const { getLastCheckedAt, updateLastCheckedAt } = require("../apps/price-engine/updateLastCheckedAt");
+const { cronRunner } = require("../apps/price-engine/cronRunner");
+
+router.get("/ping", (_, res) => {
+  res.send("PriceEngine is alive 🚀");
+});
 
 router.get("/calculate", async (req, res) => {
   const { sku_id, currency } = req.query;
@@ -37,4 +39,4 @@ router.get("/cron", async (_, res) => {
   res.send("Cron job finished ✅");
 });
 
-export default router;
+module.exports = router;
