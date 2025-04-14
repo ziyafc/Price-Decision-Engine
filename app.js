@@ -7,9 +7,12 @@ const indexRouter = require('./routes/index');
 // Engine fonksiyon test endpoint'leri
 const engineTestRouter = require('./routes/engineTest');
 
+// Supabase health test endpoint'i
+const supabaseHealthRouter = require('./routes/supabaseHealth');
+
 const app = express();
 
-// Railway ortamında PORT environment değişkeni atanır (örneğin 8080), yoksa 3000 kullanılır.
+// Railway ortamında PORT environment değişkeni atanır (örneğin 8080), yoksa 8080 kullanılır.
 const PORT = process.env.PORT || 8080;
 
 // Statik dosyalar
@@ -21,10 +24,8 @@ app.use('/engine', engineTestRouter);
 // Ana route (örneğin ana sayfa)
 app.use('/', indexRouter);
 
-const supabaseHealthRouter = require('./routes/supabaseHealth');
-
+// Supabase health endpoint'i: /health altında erişilebilir
 app.use('/health', supabaseHealthRouter);
-
 
 // 404 fallback: Eşleşmeyen route’lar için views/404.html gösterilir
 app.use((req, res, next) => {
