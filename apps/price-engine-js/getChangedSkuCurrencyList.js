@@ -9,7 +9,9 @@ async function getChangedSkuCurrencyList(lastCheckedAt) {
     .select("sku_id, currency_code, updated_at")
     .gt("updated_at", lastCheckedAt);
   changedSrp?.forEach(row => {
-    skuCurrencySet.add(`${row.sku_id}-${row.currency_code}`);
+    // JSON ile sakla
+    const keyObj = { sku_id: row.sku_id, currency_code: row.currency_code };
+    skuCurrencySet.add(JSON.stringify(keyObj));
   });
 
   // 2. exchange_rates.rate_time değişim kontrolü
@@ -24,7 +26,8 @@ async function getChangedSkuCurrencyList(lastCheckedAt) {
       .select("sku_id, currency_code")
       .in("currency_code", changedCurrencies);
     affectedSkus?.forEach(row => {
-      skuCurrencySet.add(`${row.sku_id}-${row.currency_code}`);
+      const keyObj = { sku_id: row.sku_id, currency_code: row.currency_code };
+      skuCurrencySet.add(JSON.stringify(keyObj));
     });
   }
 
@@ -52,7 +55,8 @@ async function getChangedSkuCurrencyList(lastCheckedAt) {
           .select("sku_id, currency_code")
           .in("sku_id", skuIds);
         skuCurrencies?.forEach(row => {
-          skuCurrencySet.add(`${row.sku_id}-${row.currency_code}`);
+          const keyObj = { sku_id: row.sku_id, currency_code: row.currency_code };
+          skuCurrencySet.add(JSON.stringify(keyObj));
         });
       }
     }
@@ -77,14 +81,15 @@ async function getChangedSkuCurrencyList(lastCheckedAt) {
       .select("sku_id, currency_code")
       .in("sku_id", skuIds);
     skuCurrencies?.forEach(row => {
-      skuCurrencySet.add(`${row.sku_id}-${row.currency_code}`);
+      const keyObj = { sku_id: row.sku_id, currency_code: row.currency_code };
+      skuCurrencySet.add(JSON.stringify(keyObj));
     });
   }
 
   // Tekil kombinasyonu diziye çevirerek dön
-  return Array.from(skuCurrencySet).map(key => {
-    const [sku_id, currency_code] = key.split("-");
-    return { sku_id, currency_code };
+  // Artık Set'te JSON stringler var, parse edip {sku_id, currency_code} olarak döndürüyoruz.
+  return Array.from(skuCurrencySet).map(str => {
+    return JSON.parse(str);
   });
 }
 
