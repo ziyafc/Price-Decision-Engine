@@ -21,6 +21,11 @@ app.use('/engine', engineTestRouter);
 // Ana route (örneğin ana sayfa)
 app.use('/', indexRouter);
 
+const supabaseHealthRouter = require('./routes/supabaseHealth');
+
+app.use('/', supabaseHealthRouter);
+
+
 // 404 fallback: Eşleşmeyen route’lar için views/404.html gösterilir
 app.use((req, res, next) => {
   res.status(404).sendFile(path.join(__dirname, 'views', '404.html'));
