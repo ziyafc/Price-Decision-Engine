@@ -10,7 +10,7 @@ const engineTestRouter = require('./routes/engineTest');
 const app = express();
 
 // Railway ortamında PORT environment değişkeni atanır (örneğin 8080), yoksa 3000 kullanılır.
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 // Statik dosyalar
 app.use(express.static(path.join(__dirname, 'public')));
