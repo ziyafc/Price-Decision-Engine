@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 
-const { calculateFinalPrice } = require("../apps/price-engine/calculateFinalPrice");
-const { upsertSkuPrice } = require("../apps/price-engine/upsertSkuPrice");
-const { getChangedSkuCurrencyList } = require("../apps/price-engine/getChangedSkuCurrencyList");
-const { getLastCheckedAt, updateLastCheckedAt } = require("../apps/price-engine/updateLastCheckedAt");
-const { cronRunner } = require("../apps/price-engine/cronRunner");
+const { calculateFinalPrice } = require("../apps/price-engine-js/calculateFinalPrice");
+const { upsertSkuPrice } = require("../apps/price-engine-js/upsertSkuPrice");
+const { getChangedSkuCurrencyList } = require("../apps/price-engine-js/getChangedSkuCurrencyList");
+const { getLastCheckedAt, updateLastCheckedAt } = require("../apps/price-engine-js/updateLastCheckedAt");
+const { cronRunner } = require("../apps/price-engine-js/cronRunner");
 
 router.get("/ping", (_, res) => {
   res.send("PriceEngine is alive 🚀");
