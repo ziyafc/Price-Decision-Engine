@@ -1,9 +1,10 @@
 const { supabase } = require("./supabaseClient");
 
-async function calculateFinalPrice(sku_id, currency_code) {
+async function calculateFinalPrice(sku_id, currency_code, country_code) {
   const now = new Date();
 
-  // 1. SKU detaylarını Supabase'den getiriyoruz
+  // 1) SKU detaylarını Supabase'den çek
+  // Burada sku_currencies(country_code, srp, ...) da çekelim
   const { data: skuData, error: skuErr } = await supabase
     .from("skus")
     .select(`
@@ -12,6 +13,7 @@ async function calculateFinalPrice(sku_id, currency_code) {
       organization_id,
       sku_currencies (
         currency_code,
+        country_code,
         srp
       ),
       product:products (
@@ -41,21 +43,23 @@ async function calculateFinalPrice(sku_id, currency_code) {
     return null;
   }
 
-  const currencyRow = skuData.sku_currencies?.find(c => c.currency_code === currency_code);
+  // 2) country_code'lu row bulalım (ya da fallback country_code=null'a bakarsınız)
+  const currencyRow = skuData.sku_currencies?.find(c =>
+    c.currency_code === currency_code && c.country_code === country_code
+  );
   if (!currencyRow) {
-    console.warn(`[WARN_CODE: SRP_MISSING] No SRP for ${sku_id} / ${currency_code}`);
+    console.warn(`[WARN_CODE: SRP_MISSING] No SRP for ${sku_id} / ${currency_code} / ${country_code}`);
     return null;
   }
-
   const base_srp = Number(currencyRow.srp);
 
-  // 2. Rev Share: override varsa kullan
+  // 3) rev_share
   const rev_share =
     Number(skuData.product?.rev_share_override) ||
     Number(skuData.organization?.rev_share) ||
     70;
 
-  // 3. Active Promotion kontrolü
+  // 4) Active Promotion
   const activePromo = skuData.product?.promotion_products?.find(pp => {
     const p = pp.promotion;
     if (!p) return false;
@@ -65,7 +69,8 @@ async function calculateFinalPrice(sku_id, currency_code) {
   });
   const discount_rate = activePromo?.discount || 0;
 
-  // 4. VAT Bilgisi: geo_settings + publisher_vat_rates
+  // 5) VAT Bilgisi: country_code tabanlı
+  // geo_settings + publisher_vat_rates
   const { data: geoData, error: geoErr } = await supabase
     .from("geo_settings")
     .select("code, tax_rate")
@@ -85,9 +90,12 @@ async function calculateFinalPrice(sku_id, currency_code) {
     return null;
   }
   const vatOverrideMap = Object.fromEntries(vatData.map(v => [v.country_code, v.vat_rate]));
-  const vat_rate = vatOverrideMap[currency_code] ?? geoVATMap[currency_code] ?? 0;
 
-  // 5. Exchange rate
+  // Tersine, bazen vatOverrideMap[EUR] diye bakıyorsanız, logiği projeye göre ayarlayın.
+  // Ama asıl niyet "country_code" => vat_rate ise:
+  const vat_rate = vatOverrideMap[country_code] ?? geoVATMap[country_code] ?? 0;
+
+  // 6) Exchange rate => currency bazlı
   const { data: rateData, error: rateErr } = await supabase
     .from("exchange_rates")
     .select("rate")
@@ -99,7 +107,7 @@ async function calculateFinalPrice(sku_id, currency_code) {
   }
   const exchange_rate = Number(rateData.rate);
 
-  // 6. Hesaplamalar
+  // 7) Hesaplamalar
   const discounted_srp = base_srp * (1 - discount_rate / 100);
   const discounted_srp_wo_vat = discounted_srp / (1 + vat_rate / 100);
   const wsp = discounted_srp_wo_vat * (rev_share / 100);
@@ -109,6 +117,7 @@ async function calculateFinalPrice(sku_id, currency_code) {
   return {
     sku_id,
     currency_code,
+    country_code, // ÖNEMLİ: Bu da eklendi
     base_srp,
     discount_rate,
     rev_share,

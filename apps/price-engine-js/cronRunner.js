@@ -9,14 +9,17 @@ async function cronRunner() {
     const lastCheckedAt = await getLastCheckedAt();
     console.log("📌 lastCheckedAt:", lastCheckedAt);
 
+    // changedRows artık { sku_id, currency_code, country_code } içerebilir
     const changedRows = await getChangedSkuCurrencyList(lastCheckedAt);
     console.log(`🔍 Found ${changedRows.length} changed SKU-currency pairs`);
 
     let success = 0;
     let failed = 0;
+
     for (const row of changedRows) {
       try {
-        const result = await calculateFinalPrice(row.sku_id, row.currency_code);
+        // calculateFinalPrice => 3. param country_code
+        const result = await calculateFinalPrice(row.sku_id, row.currency_code, row.country_code);
         if (result) {
           await upsertSkuPrice(result);
           success++;
@@ -24,7 +27,7 @@ async function cronRunner() {
           failed++;
         }
       } catch (err) {
-        console.error(`[ERR_CODE: PRICE_CALCULATION_FAILED] Failed for ${row.sku_id}-${row.currency_code}`, err.message);
+        console.error(`[ERR_CODE: PRICE_CALCULATION_FAILED] Failed for ${row.sku_id}-${row.currency_code}-${row.country_code}`, err.message);
         failed++;
       }
     }
