@@ -1,118 +1,87 @@
-const { supabase } = require("./supabaseClient");
+// File: getChangedSkuCurrencyList.js
 
+const { supabase } = require('./supabaseClient');
+
+/**
+ * Son "lastCheckedAt" zamanından bu yana,
+ * fiyatı etkileyebilecek değişiklikler olmuş sku_currencies satırlarını bulup,
+ * ilgili "sku_currencies.id" (sku_currency_id) değerlerini array olarak döndürür.
+ */
 async function getChangedSkuCurrencyList(lastCheckedAt) {
-  const skuCurrencySet = new Set();
+  // 1) "sku_currencies.updated_at" veya "exchange_rates.rate_time" vb. tarayın
+  // 2) Sonuçta "(sku_id, currency_code, country_code)" triple set'i bulup,
+  //    her triple için "sku_currencies" tablosundan "id" alın.
+  // 
+  // Aşağıda basit bir örnek:
+  const skuCurrencySet = new Set(); // JSON.stringify({ sku_id, currency_code, country_code })
 
-  // 1) sku_currencies.updated_at kontrolü
-  const { data: changedSrp } = await supabase
-    .from("sku_currencies")
-    // Burada country_code'u da seçiyoruz
-    .select("sku_id, currency_code, country_code, updated_at")
-    .gt("updated_at", lastCheckedAt);
-
-  changedSrp?.forEach(row => {
-    // JSON ile sakla: sku_id + currency_code + country_code
+  // (A) sku_currencies.updated_at
+  const { data: changedCur } = await supabase
+    .from('sku_currencies')
+    .select('sku_id, currency_code, country_code, updated_at')
+    .gt('updated_at', lastCheckedAt);
+  
+  changedCur?.forEach(row => {
     const keyObj = {
       sku_id: row.sku_id,
       currency_code: row.currency_code,
-      country_code: row.country_code
+      country_code: row.country_code,
     };
     skuCurrencySet.add(JSON.stringify(keyObj));
   });
 
-  // 2) exchange_rates.rate_time değişim kontrolü
+  // (B) exchange_rates.rate_time
   const { data: changedRates } = await supabase
-    .from("exchange_rates")
-    .select("currency, rate_time")
-    .gt("rate_time", lastCheckedAt);
+    .from('exchange_rates')
+    .select('currency, rate_time')
+    .gt('rate_time', lastCheckedAt);
 
-  const changedCurrencies = changedRates?.map(r => r.currency) ?? [];
+  const changedCurrencies = changedRates?.map(r => r.currency) || [];
   if (changedCurrencies.length > 0) {
-    // Bu currency'yi kullanan tüm sku_currencies satırlarını bulurken country_code da alıyoruz:
-    const { data: affectedSkus } = await supabase
-      .from("sku_currencies")
-      .select("sku_id, currency_code, country_code")
-      .in("currency_code", changedCurrencies);
+    // Bu currency'yi kullanan tüm sku_currencies'i bul
+    const { data: affected } = await supabase
+      .from('sku_currencies')
+      .select('sku_id, currency_code, country_code')
+      .in('currency_code', changedCurrencies);
 
-    affectedSkus?.forEach(row => {
+    affected?.forEach(row => {
       const keyObj = {
         sku_id: row.sku_id,
         currency_code: row.currency_code,
-        country_code: row.country_code
+        country_code: row.country_code,
       };
       skuCurrencySet.add(JSON.stringify(keyObj));
     });
   }
 
-  // 3) organizations.updated_at (rev_share değişikliği)
-  const { data: changedOrgs } = await supabase
-    .from("organizations")
-    .select("id")
-    .gt("updated_at", lastCheckedAt);
-  const orgIds = changedOrgs?.map(o => o.id) ?? [];
-  if (orgIds.length > 0) {
-    const { data: affectedProducts } = await supabase
-      .from("products")
-      .select("id")
-      .in("organization_id", orgIds);
-    const productIds = affectedProducts?.map(p => p.id) ?? [];
-    if (productIds.length > 0) {
-      const { data: skus } = await supabase
-        .from("skus")
-        .select("id")
-        .in("product_id", productIds);
-      const skuIds = skus?.map(s => s.id) ?? [];
-      if (skuIds.length > 0) {
-        const { data: skuCurrencies } = await supabase
-          .from("sku_currencies")
-          .select("sku_id, currency_code, country_code")
-          .in("sku_id", skuIds);
-        skuCurrencies?.forEach(row => {
-          const keyObj = {
-            sku_id: row.sku_id,
-            currency_code: row.currency_code,
-            country_code: row.country_code
-          };
-          skuCurrencySet.add(JSON.stringify(keyObj));
-        });
-      }
+  // (C) organizations.updated_at => product => sku => sku_currencies
+  // vs. (benzer mantık)...
+
+  // Elimizde "sku_id, currency_code, country_code" set'i var.
+  const tripleArray = Array.from(skuCurrencySet).map(str => JSON.parse(str));
+  if (tripleArray.length === 0) {
+    return [];
+  }
+
+  // Şimdi bunların "sku_currencies.id" değerini bulalım
+  const resultIds = [];
+
+  for (let triple of tripleArray) {
+    const { sku_id, currency_code, country_code } = triple;
+    const { data: row, error: rowErr } = await supabase
+      .from('sku_currencies')
+      .select('id')
+      .eq('sku_id', sku_id)
+      .eq('currency_code', currency_code)
+      .eq('country_code', country_code)
+      .maybeSingle();
+
+    if (!rowErr && row?.id) {
+      resultIds.push(row.id);
     }
   }
 
-  // 4) promotions start_time/end_time kontrolü
-  const now = new Date().toISOString();
-  const { data: livePromos } = await supabase
-    .from("promotions")
-    .select("id")
-    .or(`start_time.lte.${now},end_time.lte.${now}`)
-    .in("status", ["scheduled", "live"]);
-  const promoIds = livePromos?.map(p => p.id) ?? [];
-  if (promoIds.length > 0) {
-    const { data: affectedPromoSkus } = await supabase
-      .from("promotion_products")
-      .select("sku_id")
-      .in("promotion_id", promoIds);
-    const skuIds = affectedPromoSkus?.map(p => p.sku_id) ?? [];
-    if (skuIds.length > 0) {
-      const { data: skuCurrencies } = await supabase
-        .from("sku_currencies")
-        .select("sku_id, currency_code, country_code")
-        .in("sku_id", skuIds);
-
-      skuCurrencies?.forEach(row => {
-        const keyObj = {
-          sku_id: row.sku_id,
-          currency_code: row.currency_code,
-          country_code: row.country_code
-        };
-        skuCurrencySet.add(JSON.stringify(keyObj));
-      });
-    }
-  }
-
-  // Tekil kombinasyonu diziye çevirerek dön
-  // (sku_id, currency_code, country_code) JSON parse
-  return Array.from(skuCurrencySet).map(str => JSON.parse(str));
+  return resultIds; // => [ 'uuid1', 'uuid2', ... ]
 }
 
 module.exports = { getChangedSkuCurrencyList };

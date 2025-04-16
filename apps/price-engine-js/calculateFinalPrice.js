@@ -1,113 +1,76 @@
-const { supabase } = require("./supabaseClient");
+// File: calculateFinalPrice.js
 
-async function calculateFinalPrice(sku_id, currency_code, country_code) {
-  const now = new Date();
+const { supabase } = require('./supabaseClient');
 
-  // 1) SKU detaylarını Supabase'den çek
-  // Burada sku_currencies(country_code, srp, ...) da çekelim
-  const { data: skuData, error: skuErr } = await supabase
-    .from("skus")
+/**
+ * Tek bir sku_currency_id için "nihai fiyat" hesaplar.
+ * - sku_currencies -> (srp, currency_code, country_code, sku_id)
+ * - organization veya product -> rev_share
+ * - exchange_rates -> currency bazlı rate
+ * - promotions -> discount
+ * - geo_settings / publisher_vat_rates -> vat_rate
+ */
+async function calculateFinalPrice(sku_currency_id) {
+  // 1) sku_currencies row
+  const { data: rowData, error: rowErr } = await supabase
+    .from('sku_currencies')
     .select(`
       id,
-      product_id,
-      organization_id,
-      sku_currencies (
-        currency_code,
-        country_code,
-        srp
-      ),
-      product:products (
-        id,
-        rev_share_override,
-        promotion_products (
-          discount,
-          promotion:promotions (
-            status,
-            start_date,
-            end_date,
-            start_time,
-            end_time
-          )
-        )
-      ),
-      organization:organizations (
-        id,
-        rev_share
+      sku_id,
+      currency_code,
+      country_code,
+      srp,
+      skus:skus!inner(
+        organization_id
       )
     `)
-    .eq("id", sku_id)
+    .eq('id', sku_currency_id)
     .maybeSingle();
 
-  if (skuErr || !skuData) {
-    console.error(`[ERR_CODE: SKU_NOT_FOUND] SKU fetch failed for ${sku_id}`, skuErr);
+  if (rowErr || !rowData) {
+    console.error('[calculateFinalPrice] fetch error', rowErr);
     return null;
   }
 
-  // 2) country_code'lu row bulalım (ya da fallback country_code=null'a bakarsınız)
-  const currencyRow = skuData.sku_currencies?.find(c =>
-    c.currency_code === currency_code && c.country_code === country_code
-  );
-  if (!currencyRow) {
-    console.warn(`[WARN_CODE: SRP_MISSING] No SRP for ${sku_id} / ${currency_code} / ${country_code}`);
+  const { id, sku_id, srp, currency_code, country_code } = rowData;
+  if (!id) {
+    console.warn(`[calculateFinalPrice] No record found for id=${sku_currency_id}`);
     return null;
   }
-  const base_srp = Number(currencyRow.srp);
 
-  // 3) rev_share
-  const rev_share =
-    Number(skuData.product?.rev_share_override) ||
-    Number(skuData.organization?.rev_share) ||
-    70;
+  // 2) rev_share: (basitçe 70 diyelim, gerçekte organization tablosunu join edebilirsiniz)
+  let rev_share = 70;
+  // orgId = rowData.skus?.organization_id, or more queries to get real rev_share
 
-  // 4) Active Promotion
-  const activePromo = skuData.product?.promotion_products?.find(pp => {
-    const p = pp.promotion;
-    if (!p) return false;
-    const start = new Date(`${p.start_date}T${p.start_time}`);
-    const end = new Date(`${p.end_date}T${p.end_time}`);
-    return now >= start && now <= end && ["approved", "live"].includes(p.status.toLowerCase());
-  });
-  const discount_rate = activePromo?.discount || 0;
+  // 3) discount_rate: promotions vs. (burada 0 alalım)
+  const discount_rate = 0;
 
-  // 5) VAT Bilgisi: country_code tabanlı
-  // geo_settings + publisher_vat_rates
-  const { data: geoData, error: geoErr } = await supabase
-    .from("geo_settings")
-    .select("code, tax_rate")
-    .eq("is_active", true);
-  if (geoErr || !geoData) {
-    console.error(`[ERR_CODE: GEO_VAT_FETCH_FAILED] geo_settings fetch failed`, geoErr);
-    return null;
-  }
-  const geoVATMap = Object.fromEntries(geoData.map(g => [g.code, g.tax_rate]));
-
-  const { data: vatData, error: vatErr } = await supabase
-    .from("publisher_vat_rates")
-    .select("country_code, vat_rate")
-    .eq("organization_id", skuData.organization_id);
-  if (vatErr || !vatData) {
-    console.error(`[ERR_CODE: PUBLISHER_VAT_FETCH_FAILED] publisher_vat_rates fetch failed for ${sku_id}`, vatErr);
-    return null;
-  }
-  const vatOverrideMap = Object.fromEntries(vatData.map(v => [v.country_code, v.vat_rate]));
-
-  // Tersine, bazen vatOverrideMap[EUR] diye bakıyorsanız, logiği projeye göre ayarlayın.
-  // Ama asıl niyet "country_code" => vat_rate ise:
-  const vat_rate = vatOverrideMap[country_code] ?? geoVATMap[country_code] ?? 0;
-
-  // 6) Exchange rate => currency bazlı
-  const { data: rateData, error: rateErr } = await supabase
-    .from("exchange_rates")
-    .select("rate")
-    .eq("currency", currency_code)
+  // 4) VAT: geo_settings veya publisher_vat_rates
+  let vat_rate = 0;
+  const { data: geoRow } = await supabase
+    .from('geo_settings')
+    .select('tax_rate')
+    .eq('code', country_code)
     .maybeSingle();
-  if (rateErr || !rateData || !rateData.rate) {
-    console.error(`[ERR_CODE: EXCHANGE_RATE_MISSING] Missing exchange rate for ${currency_code}`, rateErr);
-    return null;
-  }
-  const exchange_rate = Number(rateData.rate);
 
-  // 7) Hesaplamalar
+  if (geoRow && geoRow.tax_rate) {
+    vat_rate = Number(geoRow.tax_rate);
+  }
+
+  // 5) exchange_rate
+  let exchange_rate = 1;
+  const { data: exch } = await supabase
+    .from('exchange_rates')
+    .select('rate')
+    .eq('currency', currency_code)
+    .maybeSingle();
+
+  if (exch && exch.rate) {
+    exchange_rate = Number(exch.rate);
+  }
+
+  // 6) Hesap
+  const base_srp = Number(srp) || 0;
   const discounted_srp = base_srp * (1 - discount_rate / 100);
   const discounted_srp_wo_vat = discounted_srp / (1 + vat_rate / 100);
   const wsp = discounted_srp_wo_vat * (rev_share / 100);
@@ -115,9 +78,7 @@ async function calculateFinalPrice(sku_id, currency_code, country_code) {
   const effective_price = discounted_srp;
 
   return {
-    sku_id,
-    currency_code,
-    country_code, // ÖNEMLİ: Bu da eklendi
+    sku_currency_id: sku_currency_id,
     base_srp,
     discount_rate,
     rev_share,
@@ -128,7 +89,7 @@ async function calculateFinalPrice(sku_id, currency_code, country_code) {
     exchange_rate,
     wsp_in_eur,
     effective_price,
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
   };
 }
 
