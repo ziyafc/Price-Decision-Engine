@@ -3,10 +3,8 @@
 const { supabase } = require('./supabaseClient');
 
 /**
- * "sku_prices" tablosunda tek bir satırı (sku_currency_id üzerinden) upsert eder.
- * Tüm hesaplanmış değerleri buraya yazabilirsiniz.
- * 
- * Parametre objesinin en az "sku_currency_id" içermesi gerekir.
+ * "sku_prices" tablosuna, sku_currency_id üzerinden upsert yapar.
+ * Yeni eklenen alanlar: currency_code, country_code, sku_code, product_title
  */
 async function upsertSkuPrice({
   sku_currency_id,
@@ -20,26 +18,37 @@ async function upsertSkuPrice({
   exchange_rate,
   wsp_in_eur,
   effective_price,
-  updated_at = new Date().toISOString(),
+  updated_at,
+  currency_code,
+  country_code,
+  sku_code,
+  product_title
 }) {
   const { data, error } = await supabase
     .from('sku_prices')
-    .upsert({
-      sku_currency_id,
-      base_srp,
-      discount_rate,
-      rev_share,
-      discounted_srp,
-      vat_rate,
-      discounted_srp_wo_vat,
-      wsp,
-      exchange_rate,
-      wsp_in_eur,
-      effective_price,
-      updated_at,
-    }, {
-      onConflict: 'sku_currency_id',
-    })
+    .upsert(
+      {
+        sku_currency_id,
+        base_srp,
+        discount_rate,
+        rev_share,
+        discounted_srp,
+        vat_rate,
+        discounted_srp_wo_vat,
+        wsp,
+        exchange_rate,
+        wsp_in_eur,
+        effective_price,
+        updated_at,
+        currency_code,     // ✅ yeni alanlar
+        country_code,      // ✅
+        sku_code,          // ✅
+        product_title      // ✅
+      },
+      {
+        onConflict: 'sku_currency_id',
+      }
+    )
     .select()
     .single();
 
@@ -47,6 +56,7 @@ async function upsertSkuPrice({
     console.error(`[upsertSkuPrice] Failed for sku_currency_id=${sku_currency_id}`, error.message);
     throw error;
   }
+
   console.log(`✅ sku_price upserted for sku_currency_id=${sku_currency_id}`);
   return data;
 }
