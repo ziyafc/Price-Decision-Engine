@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Price‑Engine Dashboard</title>
+<style>
+ body { font-family: sans-serif; padding: 2rem; }
+ h1  { margin-top: 0 }
+ .card { padding:1rem 1.5rem; border:1px solid #ccc; border-radius:8px; width:260px;}
+</style>
+</head>
+<body>
+  <h1>Price‑Engine Dashboard</h1>
+  <div class="card">
+    <p><strong>Last cron check :</strong> <span id="last">—</span></p>
+    <p><strong>Server time   :</strong> <span id="time">—</span></p>
+    <button onclick="refresh()">Refresh</button>
+  </div>
+
+<script>
+async function refresh() {
+  const res  = await fetch('/dashboard/status');
+  const json = await res.json();
+  document.getElementById('last').textContent = json.lastCheckedAt ?? '—';
+  document.getElementById('time').textContent = json.serverTime;
+}
+refresh();
+</script>
+</body>
+</html>

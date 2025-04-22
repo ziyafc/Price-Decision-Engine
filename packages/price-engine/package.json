@@ -1,0 +1,12 @@
+{
+  "name": "@hf/price-engine",
+  "version": "1.0.0",
+  "main": "src/workers/cronRunner.js",
+  "scripts": {
+    "dev": "nodemon src/workers/cronRunner.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.7",
+    "node-cron": "^3.0.2"
+  }
+}
