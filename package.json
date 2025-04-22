@@ -4,29 +4,26 @@
   "description": "Price Engine + API (monorepo)",
   "private": true,
 
-  /* ---------- Workspaces ---------- */
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
 
-  /* ---------- Runtime deps (common) ---------- */
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.3.1"
   },
 
-  /* ---------- Dev deps ---------- */
   "devDependencies": {
     "nodemon": "^3.1.9",
     "concurrently": "^8.2.0"
   },
 
-  /* ---------- Scripts ---------- */
   "scripts": {
-    /* dev mode */
     "dev:engine": "nodemon -w packages/price-engine/src -x \"node packages/price-engine/src/workers/cronRunner.js\"",
     "dev:api":    "nodemon -w apps/api/src -x \"node apps/api/src/server.js\"",
     "dev":        "npm run dev:api & npm run dev:engine",
 
-    /* production / Railway start */
     "start:api":    "node apps/api/src/server.js",
     "start:engine": "node packages/price-engine/src/workers/cronRunner.js --loop",
     "start":        "concurrently -k \"npm run start:api\" \"npm run start:engine\""
