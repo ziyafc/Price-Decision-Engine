@@ -1,12 +1,24 @@
-// File: cronRunner.js
+const {
+  getLastCheckedAt,
+} = require('../infra/getLastCheckedAt');
+const {
+  updateLastCheckedAt,
+} = require('../infra/updateLastCheckedAt');
+const {
+  getChangedSkuCurrencyList,
+} = require('../core/getChangedSkuCurrencyList');
+const {
+  calculateFinalPrice,
+} = require('../core/calculateFinalPrice');
+const {
+  upsertSkuPrice,
+} = require('../core/upsertSkuPrice');
 
-const { getLastCheckedAt } = require('../infra/getLastCheckedAt');
-const { updateLastCheckedAt } = require('../infra/updateLastCheckedAt');
-const { getChangedSkuCurrencyList } = require('../core/getChangedSkuCurrencyList');
-const { calculateFinalPrice } = require('../core/calculateFinalPrice');
-const { upsertSkuPrice } = require('../core/upsertSkuPrice');
-
-async function cronRunner() {
+// --------------------------------------------------
+// Tek bir cron turu — hem otomatik döngüde
+// hem  /admin/cron manuel tetikte kullanılır
+// --------------------------------------------------
+async function mainCycle() {
   try {
     console.log('🚀 PriceEngine cron started...');
     const lastCheckedAt = await getLastCheckedAt();
@@ -17,41 +29,46 @@ async function cronRunner() {
     console.log(`🔍 Found ${changedIds.length} changed sku_currency_id records`);
 
     let success = 0;
-    let failed = 0;
+    let failed  = 0;
 
-    // 2) Her ID için fiyatı hesapla => sku_prices'a upsert
+    // 2) Fiyat hesapla ➜ sku_prices upsert
     for (const skuCurrencyId of changedIds) {
       try {
-        const finalPriceObj = await calculateFinalPrice(skuCurrencyId);
-        if (finalPriceObj) {
-          await upsertSkuPrice(finalPriceObj);
+        const obj = await calculateFinalPrice(skuCurrencyId);
+        if (obj) {
+          await upsertSkuPrice(obj);
           success++;
         } else {
           failed++;
         }
       } catch (err) {
-        console.error(
-          `[ERR_CODE: PRICE_CALCULATION_FAILED] Failed for sku_currency_id=${skuCurrencyId}:`,
-          err.message
-        );
+        console.error(`[PRICE_CALC_FAIL] sku_currency_id=${skuCurrencyId}`, err.message);
         failed++;
       }
     }
 
-    console.log(`✅ ${success} entries processed successfully`);
-    if (failed > 0) console.warn(`⚠️ ${failed} entries failed`);
+    console.log(`✅ ${success} processed, ⚠️ ${failed} failed`);
 
-    // 3) Son olarak lastCheckedAt güncelle
+    // 3) Heartbeat
     await updateLastCheckedAt();
     console.log('🧭 Cron completed and lastCheckedAt updated');
   } catch (err) {
-    console.error('[ERR_CODE: CRON_FAILED] Cron runner failed:', err.message);
+    console.error('[CRON_FAILED]', err.message);
   }
 }
 
-// Direkt çalıştırma
-if (require.main === module) {
-  cronRunner();
+// --------------------------------------------------
+// Çalıştırma modu
+//   •  Tek pas  :  node cronRunner.js
+//   •  Döngü    :  node cronRunner.js --loop
+// --------------------------------------------------
+const LOOP = process.argv.includes('--loop');
+if (LOOP) {
+  console.log('🕒 cronRunner looping every 5 minutes');
+  mainCycle();                         // hemen ilk tur
+  setInterval(mainCycle, 5 * 60_000);  // 5 dk
+} else if (require.main === module) {
+  mainCycle();                         // tek pas
 }
 
-module.exports = { cronRunner };
+module.exports = { cronRunner: mainCycle };

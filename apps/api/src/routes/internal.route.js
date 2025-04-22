@@ -1,8 +1,9 @@
 const express = require('express');
 const router  = express.Router();
 
-// --- cronRunner’i içeri al ---
-const { cronRunner } = require('../../../../packages/price-engine/src/workers/cronRunner.js');
+const {
+  cronRunner,
+} = require('../../../../packages/price-engine/src/workers/cronRunner.js');
 
 /**
  * Elle tetiklenen cron:
@@ -13,7 +14,7 @@ router.get('/cron', async (_, res) => {
     await cronRunner();
     res.send('Cron job finished ✅');
   } catch (err) {
-    console.error('[ERR] manual cron', err);
+    console.error('[manual cron]', err);
     res.status(500).send('Cron error');
   }
 });
