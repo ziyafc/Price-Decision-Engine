@@ -1,10 +1,10 @@
 // File: cronRunner.js
 
-const { getLastCheckedAt } = require('./getLastCheckedAt');
-const { updateLastCheckedAt } = require('./updateLastCheckedAt');
-const { getChangedSkuCurrencyList } = require('./getChangedSkuCurrencyList');
-const { calculateFinalPrice } = require('./calculateFinalPrice');
-const { upsertSkuPrice } = require('./upsertSkuPrice');
+const { getLastCheckedAt } = require('../infra/getLastCheckedAt');
+const { updateLastCheckedAt } = require('../infra/updateLastCheckedAt');
+const { getChangedSkuCurrencyList } = require('../core/getChangedSkuCurrencyList');
+const { calculateFinalPrice } = require('../core/calculateFinalPrice');
+const { upsertSkuPrice } = require('../core/upsertSkuPrice');
 
 async function cronRunner() {
   try {

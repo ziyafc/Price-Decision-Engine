@@ -1,6 +1,6 @@
 // File: getChangedSkuCurrencyList.js
 
-const { supabase } = require('./supabaseClient');
+const { supabase } = require('../infra/supabaseClient');
 
 /**
  * Son "lastCheckedAt" zamanından bu yana,

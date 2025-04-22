@@ -1,6 +1,6 @@
 // File: calculateFinalPrice.js
 
-const { supabase } = require('./supabaseClient');
+const { supabase } = require('../infra/supabaseClient');
 
 /**
  * Tek bir sku_currency_id için "nihai fiyat" hesaplar.

@@ -1,6 +1,6 @@
 // File: upsertSkuPrice.js
 
-const { supabase } = require('./supabaseClient');
+const { supabase } = require('../infra/supabaseClient');
 
 /**
  * "sku_prices" tablosuna, sku_currency_id üzerinden upsert yapar.
