@@ -11,21 +11,21 @@
 
   "dependencies": {
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "concurrently": "^8.2.0"
   },
 
   "devDependencies": {
-    "nodemon": "^3.1.9",
-    "concurrently": "^8.2.0"
+    "nodemon": "^3.1.9"
   },
 
   "scripts": {
     "dev:engine": "nodemon -w packages/price-engine/src -x \"node packages/price-engine/src/workers/cronRunner.js\"",
-    "dev:api":    "nodemon -w apps/api/src -x \"node apps/api/src/server.js\"",
-    "dev":        "npm run dev:api & npm run dev:engine",
+    "dev:api": "nodemon -w apps/api/src -x \"node apps/api/src/server.js\"",
+    "dev": "npm run dev:api & npm run dev:engine",
 
-    "start:api":    "node apps/api/src/server.js",
+    "start:api": "node apps/api/src/server.js",
     "start:engine": "node packages/price-engine/src/workers/cronRunner.js --loop",
-    "start":        "concurrently -k \"npm run start:api\" \"npm run start:engine\""
+    "start": "concurrently -k \"npm run start:api\" \"npm run start:engine\""
   }
 }
