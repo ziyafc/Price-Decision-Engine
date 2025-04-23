@@ -1,8 +1,3 @@
-/**
- * apps/api/src/routes/skus.route.js
- * ---------------------------------
- *  SKU price listesi + güncelleme endpoint’leri
- */
 const express  = require('express');
 const router   = express.Router();
 
@@ -155,10 +150,10 @@ router.post('/:sku_id/update', async (req, res, next) => {
         .from('sku_countries')
         .upsert(
           uniq
-            .filter(u => u.country_code !== null)      // NULL satırı country tablosuna yazma
+            .filter(u => u.country_code !== null)      // NULL satırını country tablosuna yazma
             .map(u => ({
               sku_id,
-              product_id,                     // ← Zorunlu alan dolu
+              product_id,                     // Zorunlu alan
               currency_code: u.currency_code,
               country_code : u.country_code,
               is_active    : true,
