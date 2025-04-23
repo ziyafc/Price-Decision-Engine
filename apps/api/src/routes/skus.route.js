@@ -1,34 +1,42 @@
-// apps/api/src/routes/skus.route.js
-const express = require('express');
-const router  = express.Router();
+import { Router } from 'express'
+import { supabase } from '../infra/supabaseClient'  // ya da doğrudan supabaseClient import
 
-// Supabase client’ınızı projenin infra klasöründen alın
-const { supabase } = require('../../../../packages/price-engine/src/infra/supabaseClient');
+export const skusRoute = Router()
 
-/**
- * POST /api/skus/:sku_id/update
- * Body: { entries: [ {currency_code, country_code, srp, is_default}, … ] }
- */
-router.post('/:sku_id/update', async (req, res) => {
-  const sku_id = req.params.sku_id;
-  const entries = req.body.entries;
+// GET /api/skus?page=1&limit=200
+skusRoute.get('/', async (req, res, next) => {
+  try {
+    const page  = parseInt(req.query.page  as string) || 1
+    const limit = parseInt(req.query.limit as string) || 200
+    const offset = (page - 1) * limit
 
-  if (!Array.isArray(entries)) {
-    return res.status(400).json({ error: "'entries' must be an array" });
+    // Burada aynı front-end’in SELECT’ ettiği nested ilişkiyi kopyalayın:
+    const { data, count, error } = await supabase
+      .from('sku_prices')
+      .select(`
+        *,
+        sku_currency:sku_currency_id (
+          sku_id, country_code, currency_code, srp, is_default,
+          sku:sku_id (
+            id, code,
+            product:products ( title, product_type, rev_share_override,
+              promotion_products (
+                discount,
+                promotion:promotions ( start_date, end_date, start_time, end_time, status )
+              )
+            ),
+            organization:organizations ( id, name, rev_share )
+          )
+        )
+      `, { count: 'exact' })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw error
+
+    // Toplam satır sayısını header’da dönüyoruz
+    res.setHeader('X-Total-Count', count ?? 0)
+    res.json(data)
+  } catch (err) {
+    next(err)
   }
-
-  // RPC’i çağır
-  const { error } = await supabase.rpc('update_sku', {
-    p_sku_id:  sku_id,
-    p_entries: entries
-  });
-
-  if (error) {
-    console.error('[update_sku RPC error]', error.message);
-    return res.status(500).json({ error: error.message });
-  }
-
-  return res.json({ success: true });
-});
-
-module.exports = router;
+})
