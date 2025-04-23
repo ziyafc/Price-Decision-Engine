@@ -1,25 +1,20 @@
 // apps/api/src/routes/skus.route.js
+import { Router } from 'express'
+import { supabase } from '../infra/supabaseClient'
 
-const express = require('express')
-const router  = express.Router()
-const { supabase } = require('../infra/supabaseClient')
+export const skusRoute = Router()
 
-/**
- * GET /api/skus?page=1&limit=200
- * 
- * Returns paginated sku_prices rows, with nested "sku_currency" objects.
- * Sets X-Total-Count header to total count for infinite scroll.
- */
-router.get('/', async (req, res, next) => {
+// GET /api/skus?page=1&limit=200
+skusRoute.get('/', async (req, res, next) => {
   try {
-    const page   = parseInt(req.query.page  as string, 10) || 1
-    const limit  = parseInt(req.query.limit as string, 10) || 200
+    const page   = parseInt(req.query.page  as string) || 1
+    const limit  = parseInt(req.query.limit as string) || 200
     const offset = (page - 1) * limit
 
-    // Fetch sku_prices with nested sku_currency -> sku -> product & organization & promotions
     const { data, count, error } = await supabase
       .from('sku_prices')
-      .select(`
+      .select(
+        `
         *,
         sku_currency:sku_currency_id (
           sku_id,
@@ -30,7 +25,6 @@ router.get('/', async (req, res, next) => {
           sku:sku_id (
             id,
             code,
-            organization_id,
             product:products (
               title,
               product_type,
@@ -53,12 +47,14 @@ router.get('/', async (req, res, next) => {
             )
           )
         )
-      `, { count: 'exact' })
+        `,
+        { count: 'exact' }
+      )
       .range(offset, offset + limit - 1)
 
     if (error) throw error
 
-    // Expose total count for client-side pagination
+    // Toplam satır sayısını header’da dönüyoruz
     res.setHeader('X-Total-Count', count ?? 0)
     res.json(data)
   } catch (err) {
@@ -66,4 +62,4 @@ router.get('/', async (req, res, next) => {
   }
 })
 
-module.exports = router
+export default skusRoute
